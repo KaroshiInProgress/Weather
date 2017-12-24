@@ -19,35 +19,35 @@ namespace WeatherApp
 
         static void Main(string[] args)
         {
-            if (args.Length != 3 || args.Length != 4)
-            {
-                Console.WriteLine("You are missing some arguments.");
-                Environment.Exit(0);
-            }
+            //if (args.Length != 3 || args.Length != 4)
+            //{
+            //    Console.WriteLine("You are missing some arguments.");
+            //    Environment.Exit(0);
+            //}
 
-            var apiKey = args[0];
-            var cityName = args[1];
-            var countryCode = args[2];
-            string section = null;
+            //var apiKey = args[0];
+            //var cityName = args[1];
+            //var countryCode = args[2];
+            //string section = null;
 
-            if (args.Length == 4)
-            {
-                if (ValidSections.Contains(args[3].ToLower()))
-                {
-                    section = args[3].ToLower();
-                }
-                else
-                {
-                    Console.WriteLine("Invalid section.");
-                    Environment.Exit(0);
-                }
-            }
+            //if (args.Length == 4)
+            //{
+            //    if (ValidSections.Contains(args[3].ToLower()))
+            //    {
+            //        section = args[3].ToLower();
+            //    }
+            //    else
+            //    {
+            //        Console.WriteLine("Invalid section.");
+            //        Environment.Exit(0);
+            //    }
+            //}
 
             // for dev
-            //var apiKey = "910212c8b2a6d73f2988da96ed5a56d0";
-            //var cityName = "Nantwich";
-            //var countryCode = "UK";
-            //string section = "main";
+            var apiKey = "910212c8b2a6d73f2988da96ed5a56d0";
+            var cityName = "Nantwich";
+            var countryCode = "UK";
+            string section = "main";
 
             var httpResponseTask = GetWeatherData(apiKey, cityName, countryCode);
             httpResponseTask.Wait();
@@ -60,32 +60,7 @@ namespace WeatherApp
 
             var weatherDataTask = httpResponseTask.Result.Content.ReadAsStringAsync();
             weatherDataTask.Wait();
-
-            var result = weatherDataTask.Result;
-            if (section != null)
-            {
-                dynamic resultObject = JsonConvert.DeserializeObject<ExpandoObject>(weatherDataTask.Result);
-
-                switch (section)
-                {
-                    case "weather":
-                        result = JsonConvert.SerializeObject(resultObject.weather);
-                        break;
-
-                    case "wind":
-                        result = JsonConvert.SerializeObject(resultObject.wind);
-                        break;
-
-                    case "main":
-                        result = JsonConvert.SerializeObject(resultObject.main);
-                        break;
-
-                    case "clouds":
-                        result = JsonConvert.SerializeObject(resultObject.clouds);
-                        break;
-                }
-            }
-
+            
             if (!File.Exists(PreviousApiCallsLocation))
             {
                 File.WriteAllText(PreviousApiCallsLocation, "[]");
@@ -102,6 +77,7 @@ namespace WeatherApp
                     previousCallsSameCity.Add(previousApiCall);
                 }
             }
+            previousCallsSameCity = previousCallsSameCity.OrderByDescending(apiCall => apiCall.TimeCalled).Take(3).ToList();
 
             var newApiCall = new ApiCall();
             newApiCall.ApiKey = apiKey;
@@ -119,10 +95,44 @@ namespace WeatherApp
             if (section != null)
             {
                 Console.WriteLine($"Section: {section}");
+                Console.WriteLine($"Results: {GetSectionOnly(section, weatherDataTask.Result)}");
+                Console.WriteLine("Previous results:");
+                foreach (var previousCall in previousCallsSameCity)
+                {
+                    Console.WriteLine(GetSectionOnly(section, previousCall.Results));
+                }
             }
-            Console.WriteLine($"Results: {result}");
-            Console.WriteLine($"Previous results: {JsonConvert.SerializeObject(previousCallsSameCity)}");
+            else
+            {
+                Console.WriteLine($"Results: {weatherDataTask.Result}");
+                Console.WriteLine($"Previous results: {JsonConvert.SerializeObject(previousCallsSameCity)}");
+            }
             Console.ReadKey();
+        }
+
+        private static string GetSectionOnly(string section, string weatherData)
+        {
+            if (section == null)
+                return weatherData;
+
+            dynamic weatherObject = JsonConvert.DeserializeObject<ExpandoObject>(weatherData);
+
+            switch (section)
+            {
+                case "weather":
+                    return JsonConvert.SerializeObject(weatherObject.weather);
+
+                case "wind":
+                    return JsonConvert.SerializeObject(weatherObject.wind);
+
+                case "main":
+                    return JsonConvert.SerializeObject(weatherObject.main);
+
+                case "clouds":
+                    return JsonConvert.SerializeObject(weatherObject.clouds);
+            }
+
+            return "";
         }
 
         private static async Task<HttpResponseMessage> GetWeatherData(string apiKey, string cityName, string countryCode)
