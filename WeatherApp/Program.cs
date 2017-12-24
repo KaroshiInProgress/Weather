@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Dynamic;
-using System.Linq;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace WeatherApp
 {
@@ -43,7 +44,7 @@ namespace WeatherApp
             //var apiKey = "910212c8b2a6d73f2988da96ed5a56d0";
             //var cityName = "Nantwich";
             //var countryCode = "UK";
-            //string section = null;
+            //string section = "main";
 
             var httpResponseTask = GetWeatherData(apiKey, cityName, countryCode);
             httpResponseTask.Wait();
@@ -81,6 +82,8 @@ namespace WeatherApp
                         break;
                 }
             }
+
+            File.AppendAllLines("C:\\weather_app_results.txt", new [] {weatherDataTask.Result});
 
             Console.WriteLine($"ApiKey: {apiKey}");
             Console.WriteLine($"CityName: {cityName}");
