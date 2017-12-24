@@ -1,4 +1,6 @@
 ﻿using System;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Dynamic;
 using System.IO;
 using System.Net;
@@ -13,6 +15,7 @@ namespace WeatherApp
     class Program
     {
         private static string[] ValidSections = { "weather", "wind", "main", "clouds" };
+        private static string PreviousApiCallsLocation = "C:\\weather_app_api_calls.txt";
 
         static void Main(string[] args)
         {
@@ -83,7 +86,32 @@ namespace WeatherApp
                 }
             }
 
-            File.AppendAllLines("C:\\weather_app_results.txt", new [] {weatherDataTask.Result});
+            if (!File.Exists(PreviousApiCallsLocation))
+            {
+                File.WriteAllText(PreviousApiCallsLocation, "[]");
+            }
+
+            var previousApiCallsFileContents = File.ReadAllText(PreviousApiCallsLocation);
+            var previousApiCalls = JsonConvert.DeserializeObject<List<ApiCall>>(previousApiCallsFileContents);
+
+            var previousCallsSameCity = new List<ApiCall>();
+            foreach (var previousApiCall in previousApiCalls)
+            {
+                if (previousApiCall.CityName == cityName && previousApiCall.CountryCode == countryCode)
+                {
+                    previousCallsSameCity.Add(previousApiCall);
+                }
+            }
+
+            var newApiCall = new ApiCall();
+            newApiCall.ApiKey = apiKey;
+            newApiCall.CityName = cityName;
+            newApiCall.CountryCode = countryCode;
+            newApiCall.Results = weatherDataTask.Result;
+            newApiCall.TimeCalled = DateTime.Now;
+
+            previousApiCalls.Add(newApiCall);
+            File.WriteAllText(PreviousApiCallsLocation, JsonConvert.SerializeObject(previousApiCalls));
 
             Console.WriteLine($"ApiKey: {apiKey}");
             Console.WriteLine($"CityName: {cityName}");
@@ -93,6 +121,7 @@ namespace WeatherApp
                 Console.WriteLine($"Section: {section}");
             }
             Console.WriteLine($"Results: {result}");
+            Console.WriteLine($"Previous results: {JsonConvert.SerializeObject(previousCallsSameCity)}");
             Console.ReadKey();
         }
 
@@ -108,5 +137,14 @@ namespace WeatherApp
                 return await client.GetAsync(queryString);
             }
         }
+    }
+
+    class ApiCall
+    {
+        public string ApiKey { get; set; }
+        public string CityName { get; set; }
+        public string CountryCode { get; set; }
+        public DateTime TimeCalled { get; set; }
+        public string Results { get; set; }
     }
 }
